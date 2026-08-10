@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<sub-flow name="brevoSendEmail_subFlow" doc:id="18370bd4-550e-44eb-a14d-bfba7e1dcb7a" >
+		<logger level="INFO" doc:name="dataToBrevo" doc:id="7dd3dc5c-4c13-46e3-a825-9ff57b021a2d" message="#[%dw 2.0&#10;output application/json&#10;---&#10;vars.dataToBrevo]" />
+		<until-successful maxRetries="2" doc:name="Until Successful" doc:id="28f20e1c-00af-47b9-be23-7d20604c6253" millisBetweenRetries="5000" >
+			<http:request doc:name="Brevo Email" doc:id="484384e9-ffa5-4f9e-8b73-5c6a4af80f70" config-ref="HTTP_Request_Brevo" method="POST" path="${brevo.path.sendEmail}" >
+				<http:body ><![CDATA[#[vars.dataToBrevo]]]></http:body>
+				<http:headers ><![CDATA[#[output application/java
+---
+{
+	"api-key" : p('brevo.api-key')
+}]]]></http:headers>
+			</http:request>
+		</until-successful>
+	</sub-flow>
+</mule>

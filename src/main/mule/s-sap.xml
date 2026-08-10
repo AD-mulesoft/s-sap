@@ -1,0 +1,355 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:sap="http://www.mulesoft.org/schema/mule/sap" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd 
+http://www.mulesoft.org/schema/mule/sap http://www.mulesoft.org/schema/mule/sap/current/mule-sap.xsd">
+    <apikit:config name="s-sap-config" api="s-sap.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+    <flow name="s-sap-main">
+        <http:listener config-ref="s-sap-httpListenerConfig" path="/api/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="s-sap-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:BAD_REQUEST">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Bad request"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <!-- [STUDIO:"s-sap-console"]<flow name="s-sap-console">
+        <http:listener config-ref="s-sap-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200&#93;">
+                <http:headers>#[vars.outboundHeaders default {}&#93;</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500&#93;">
+                <http:body>#[payload&#93;</http:body>
+                <http:headers>#[vars.outboundHeaders default {}&#93;</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="s-sap-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+&#45;&#45;-
+{message: "Resource not found"}&#93;&#93;></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow> [STUDIO] -->
+    <flow name="post:\stock:s-sap-config">
+        <logger level="INFO" doc:name="INIT" doc:id="6da3c4b2-39e1-4769-8f91-8fad18aa60f4" message="INIT post:\stock" />
+        <logger level="DEBUG" doc:name="Input Data" doc:id="858e6f6e-0a2b-4e95-b5ef-1e512e15864b" message="#[%dw 2.0&#xA;output application/json&#xA;---&#xA;payload]" />
+        <flow-ref doc:name="getStock_subFlow" doc:id="30673c9d-0c07-4912-a29c-461d4c77507b" name="getStock_subFlow" />
+        <logger level="DEBUG" doc:name="Output Data" doc:id="9cd99b79-c91c-4ddb-bbe1-861d4f59b7ea" message="#[%dw 2.0&#xA;output application/json&#xA;---&#xA;payload]" />
+        <logger level="INFO" doc:name="END" doc:id="b083af44-526a-4119-85f2-630ddc6255e5" message="END post:\stock" />
+    </flow>
+    <flow name="post:\client:s-sap-config" doc:id="ba949933-6427-4307-b03d-54745d3ef450">
+		<logger level="INFO" doc:name="INIT" doc:id="44d62bea-6c3e-4c75-b9d7-adac8b8e3e2c" message="INIT post:\client" />
+		<logger level="DEBUG" doc:name="Input Data" doc:id="e46f39b7-f67b-4e53-ac43-ad4b08932f69" message="#[%dw 2.0&#10;output application/json&#10;---&#10;payload]" />
+		<flow-ref doc:name="postClient_subFlow" doc:id="cb50958c-9c4c-4771-aaab-931e79058efe" name="postClient_subFlow" />
+		<logger level="INFO" doc:name="Output Data" doc:id="949e0d97-1f28-4de2-87d0-a568a1c9f7d7" message="#[%dw 2.0&#10;output application/json&#10;---&#10;payload]" />
+		<logger level="INFO" doc:name="END" doc:id="74c21357-9b77-4504-8862-5899040c860e" message="END post:\client" />
+    </flow>
+	<!-- [STUDIO:"testClientes"]<flow name="testClientes" doc:id="d0a8a665-4bfb-428b-8a44-2f7206590612" maxConcurrency="1">
+		<scheduler doc:name="Scheduler" doc:id="56b7c596-7911-48ef-a7a9-fa4a4b316a8e" >
+			<scheduling-strategy >
+				<fixed-frequency frequency="1" startDelay="1" timeUnit="DAYS"/>
+			</scheduling-strategy>
+		</scheduler>
+		<ee:transform doc:name="Sample XML" doc:id="d30294a2-95a1-4c9b-8668-dd1cba6441dc" >
+			<ee:message />
+			<ee:variables >
+				<ee:set-variable variableName="dataToSap" ><![CDATA[%dw 2.0
+output application/xml
+&#45;&#45;-
+read(
+'<ZMF_CHANGE_CUS_SF>
+  <import>
+    <I_KUNNR>0005101188</I_KUNNR>
+    <I_CUS>
+      <LZONE>CL13010031</LZONE>
+      <NAME>Arrayan Construcciones SPA</NAME>
+      <NAME_2>Arrayan Construcciones</NAME_2>
+      <SORT1>Arrayan Construccion</SORT1>
+      <SORT2>Santiago</SORT2>
+      <STREET>Avenida Alameda</STREET>
+      <HOUSE_NO>871</HOUSE_NO>
+      <BRSCH>451</BRSCH>
+      <BRAN1>439000</BRAN1>
+      <REGION>13</REGION>
+      <CITY>Santiago</CITY>
+    </I_CUS>
+    <I_CUSX>
+      <LZONE/>
+      <NAME/>
+      <NAME_2>X</NAME_2>
+      <SORT1/>
+      <SORT2/>
+      <STREET/>
+      <HOUSE_NO/>
+      <BRSCH/>
+      <BRAN1/>
+      <REGION/>
+      <CITY/>
+    </I_CUSX>    
+  </import>
+  <tables>
+    <TI_DVENTAS>
+      <row>
+        <VKORG>VOLC</VKORG>
+        <VTWEG>10</VTWEG>
+        <SPART>00</SPART>
+        <KDGRP>03</KDGRP>
+        <VKBUR>1302</VKBUR>
+        <INCO2>Santiago</INCO2>
+        <LPRIO>13</LPRIO>
+        <KLABC>B</KLABC>
+        <DZTERM>CTDO</DZTERM>
+        <PERNR>833</PERNR>
+        <DZTERM>CTDO</DZTERM>
+      </row>
+      <row>
+        <VKORG>VOLC</VKORG>
+        <VTWEG>20</VTWEG>
+        <SPART>00</SPART>
+        <KDGRP>03</KDGRP>
+        <VKBUR>1302</VKBUR>
+        <INCO2>Santiago</INCO2>
+        <LPRIO>13</LPRIO>
+        <KLABC>B</KLABC>
+        <DZTERM>CTDO</DZTERM>
+        <PERNR>833</PERNR>
+        <DZTERM>CTDO</DZTERM>
+      </row>
+      <row>
+        <VKORG>FIBR</VKORG>
+        <VTWEG>10</VTWEG>
+        <SPART>00</SPART>
+        <KDGRP>03</KDGRP>
+        <VKBUR>1302</VKBUR>
+        <INCO2>Santiago</INCO2>
+        <LPRIO>13</LPRIO>
+        <KLABC>B</KLABC>
+        <DZTERM>CTDO</DZTERM>
+        <PERNR>833</PERNR>
+        <DZTERM>CTDO</DZTERM>
+      </row>
+      <row>
+        <VKORG>FIBR</VKORG>
+        <VTWEG>20</VTWEG>
+        <SPART>00</SPART>
+        <KDGRP>03</KDGRP>
+        <VKBUR>1302</VKBUR>
+        <INCO2>Santiago</INCO2>
+        <LPRIO>13</LPRIO>
+        <KLABC>B</KLABC>
+        <DZTERM>CTDO</DZTERM>
+        <PERNR>833</PERNR>
+        <DZTERM>CTDO</DZTERM>
+      </row>
+      <row>
+        <VKORG>AVSA</VKORG>
+        <VTWEG>10</VTWEG>
+        <SPART>00</SPART>
+        <KDGRP>03</KDGRP>
+        <VKBUR>1302</VKBUR>
+        <INCO2>Santiago</INCO2>
+        <LPRIO>13</LPRIO>
+        <KLABC>B</KLABC>
+        <DZTERM>CTDO</DZTERM>
+        <PERNR>833</PERNR>
+        <DZTERM>CTDO</DZTERM>
+      </row>
+      <row>
+        <VKORG>AVSA</VKORG>
+        <VTWEG>20</VTWEG>
+        <SPART>00</SPART>
+        <KDGRP>03</KDGRP>
+        <VKBUR>1302</VKBUR>
+        <INCO2>Santiago</INCO2>
+        <LPRIO>13</LPRIO>
+        <KLABC>B</KLABC>
+        <DZTERM>CTDO</DZTERM>
+        <PERNR>833</PERNR>
+        <DZTERM>CTDO</DZTERM>
+      </row>
+    </TI_DVENTAS>
+    <TI_DVENTASX>
+      <row>
+        <VKORG>X</VKORG>
+        <VTWEG>X</VTWEG>
+        <SPART>X</SPART>
+        <KDGRP/>
+        <VKBUR/>
+        <INCO2>X</INCO2>
+        <LPRIO/>
+        <KLABC/>
+        <DZTERM/>
+        <PERNR/>
+        <DZTERM/>
+      </row>
+      <row>
+        <VKORG>X</VKORG>
+        <VTWEG>X</VTWEG>
+        <SPART>X</SPART>
+        <KDGRP/>
+        <VKBUR/>
+        <INCO2>X</INCO2>
+        <LPRIO/>
+        <KLABC/>
+        <DZTERM/>
+        <PERNR/>
+        <DZTERM/>
+      </row>
+      <row>
+        <VKORG>X</VKORG>
+        <VTWEG>X</VTWEG>
+        <SPART>X</SPART>
+        <KDGRP/>
+        <VKBUR/>
+        <INCO2>X</INCO2>
+        <LPRIO/>
+        <KLABC/>
+        <DZTERM/>
+        <PERNR/>
+        <DZTERM/>
+      </row>
+      <row>
+        <VKORG>X</VKORG>
+        <VTWEG>X</VTWEG>
+        <SPART>X</SPART>
+        <KDGRP/>
+        <VKBUR/>
+        <INCO2>X</INCO2>
+        <LPRIO/>
+        <KLABC/>
+        <DZTERM/>
+        <PERNR/>
+        <DZTERM/>
+      </row>
+      <row>
+        <VKORG>X</VKORG>
+        <VTWEG>X</VTWEG>
+        <SPART>X</SPART>
+        <KDGRP/>
+        <VKBUR/>
+        <INCO2>X</INCO2>
+        <LPRIO/>
+        <KLABC/>
+        <DZTERM/>
+        <PERNR/>
+        <DZTERM/>
+      </row>
+      <row>
+        <VKORG>X</VKORG>
+        <VTWEG>X</VTWEG>
+        <SPART>X</SPART>
+        <KDGRP/>
+        <VKBUR/>
+        <INCO2>X</INCO2>
+        <LPRIO/>
+        <KLABC/>
+        <DZTERM/>
+        <PERNR/>
+        <DZTERM/>
+      </row>
+    </TI_DVENTASX>    
+  </tables>
+</ZMF_CHANGE_CUS_SF>',
+"application/xml"
+)&#93;&#93;></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<until-successful maxRetries="3" doc:name="Until Successful" doc:id="ace35c30-138e-46bc-a845-bc84bbe43711" millisBetweenRetries="5000" >
+			<sap:synchronous-remote-function-call key="ZMF_CHANGE_CUS_SF" doc:name="Synchronous Remote Function Call" doc:id="3a6aa915-1f1c-4ddf-aa51-3d7081c58fa1" config-ref="SAP_Config" >
+				<sap:content ><![CDATA[#[vars.dataToSap&#93;&#93;&#93;></sap:content>
+			</sap:synchronous-remote-function-call>
+		</until-successful>
+		<logger level="INFO" doc:name="payload" doc:id="36fdbb30-6a7a-45fb-af67-cdb2135631fc" message="#[payload&#93;" />
+	</flow> [STUDIO] -->
+</mule>

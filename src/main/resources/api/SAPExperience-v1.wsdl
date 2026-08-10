@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wsdl:definitions
+    xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+    xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+    xmlns:tns="http://volcan.cl/mulesoft/sap-experience/v1"
+    xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+    targetNamespace="http://volcan.cl/mulesoft/sap-experience/v1"
+    name="SAPExperienceService">
+
+    <!-- =========================================================
+         Volcán
+         Servicio: Pago Masivo a Proveedores vía Bancos
+         Versión:  1.0
+         Protocolo: SAP → MuleSoft (SOAP) → SFTP Bancos
+         ========================================================= -->
+
+    <wsdl:types>
+        <xsd:schema targetNamespace="http://volcan.cl/mulesoft/sap-experience/v1"
+                    elementFormDefault="qualified">
+
+            <!-- ===== Tipos simples ===== -->
+
+            <xsd:simpleType name="Char4Type">
+                <xsd:restriction base="xsd:string">
+                    <xsd:maxLength value="4"/>
+                    <xsd:minLength value="1"/>
+                </xsd:restriction>
+            </xsd:simpleType>
+            
+            <xsd:simpleType name="Char5Type">
+                <xsd:restriction base="xsd:string">
+                    <xsd:maxLength value="5"/>
+                    <xsd:minLength value="1"/>
+                </xsd:restriction>
+            </xsd:simpleType>
+
+            <xsd:simpleType name="Char50Type">
+                <xsd:restriction base="xsd:string">
+                    <xsd:maxLength value="50"/>
+                    <xsd:minLength value="1"/>
+                </xsd:restriction>
+            </xsd:simpleType>
+
+            <xsd:simpleType name="CodigoRespuestaType">
+                <xsd:restriction base="xsd:string">
+                    <xsd:enumeration value="OK"/>
+                    <xsd:enumeration value="NOK"/>
+                </xsd:restriction>
+            </xsd:simpleType>
+
+            <!-- ===== Request ===== -->
+
+            <xsd:element name="EnviarArchivoBancoRequest">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <!--
+                            ID_BANCO (char 4):
+                            Código SAP identificador del banco destino.
+                            Ejemplo: "BBVA", "BCP", "SCOT", "IBK"
+                        -->
+                        <xsd:element name="ID_BANCO" type="tns:Char5Type"/>
+
+                        <!--
+                            NOMBRE_ARCHIVO (char 50):
+                            Nombre del archivo sin extensión que se generará en el SFTP del banco.
+                        -->
+                        <xsd:element name="NOMBRE_ARCHIVO" type="tns:Char50Type"/>
+
+                        <!--
+                            EXTENSION_ARCHIVO (char 4):
+                            Extensión del archivo. Ejemplo: "txt", "csv"
+                        -->
+                        <xsd:element name="EXTENSION_ARCHIVO" type="tns:Char4Type"/>
+
+                        <!--
+                            CUERPO_MENSAJE:
+                            Contenido íntegro del archivo a depositar en el SFTP.
+                            El contenido NO se modifica; la estructura de columnas y filas
+                            ya fue validada por el banco.
+                        -->
+                        <xsd:element name="CUERPO_MENSAJE" type="xsd:string"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+            <!-- ===== Response ===== -->
+
+            <xsd:element name="EnviarArchivoBancoResponse">
+                <xsd:complexType>
+                    <xsd:sequence>
+                        <!--
+                            CODIGO:
+                            Resultado de la operación.
+                            OK  → El archivo fue entregado exitosamente al SFTP del banco.
+                            NOK → Ocurrió un error; ver campo GLOSA para el detalle.
+                        -->
+                        <xsd:element name="CODIGO" type="tns:CodigoRespuestaType"/>
+
+                        <!--
+                            GLOSA:
+                            Descripción del error cuando CODIGO = NOK.
+                            Vacío o ausente cuando CODIGO = OK.
+                        -->
+                        <xsd:element name="GLOSA" type="xsd:string" minOccurs="0"/>
+                    </xsd:sequence>
+                </xsd:complexType>
+            </xsd:element>
+
+        </xsd:schema>
+    </wsdl:types>
+
+    <!-- ===== Mensajes ===== -->
+
+    <wsdl:message name="EnviarArchivoBancoRequestMsg">
+        <wsdl:part name="parameters" element="tns:EnviarArchivoBancoRequest"/>
+    </wsdl:message>
+
+    <wsdl:message name="EnviarArchivoBancoResponseMsg">
+        <wsdl:part name="parameters" element="tns:EnviarArchivoBancoResponse"/>
+    </wsdl:message>
+
+    <!-- ===== PortType (interfaz abstracta) ===== -->
+
+    <wsdl:portType name="SAPExperiencePortType">
+        <wsdl:operation name="EnviarArchivoBanco">
+            <wsdl:documentation>
+                Recibe desde SAP el contenido de un archivo de pago masivo a proveedores
+                y lo deposita en el SFTP del banco identificado por ID_BANCO.
+                El contenido del archivo no es modificado por MuleSoft.
+            </wsdl:documentation>
+            <wsdl:input  message="tns:EnviarArchivoBancoRequestMsg"/>
+            <wsdl:output message="tns:EnviarArchivoBancoResponseMsg"/>
+        </wsdl:operation>
+    </wsdl:portType>
+
+    <!-- ===== Binding (SOAP 1.1 / document-literal) ===== -->
+
+    <wsdl:binding name="PagoMasivoProveedoresSoapBinding"
+                  type="tns:SAPExperiencePortType">
+        <soap:binding style="document"
+                      transport="http://schemas.xmlsoap.org/soap/http"/>
+        <wsdl:operation name="EnviarArchivoBanco">
+            <soap:operation soapAction="http://volcan.cl/mulesoft/sap-experience/v1/EnviarArchivoBanco"
+                            style="document"/>
+            <wsdl:input>
+                <soap:body use="literal"/>
+            </wsdl:input>
+            <wsdl:output>
+                <soap:body use="literal"/>
+            </wsdl:output>
+        </wsdl:operation>
+    </wsdl:binding>
+
+    <!-- ===== Service (endpoint concreto) ===== -->
+
+    <wsdl:service name="SAPExperienceService">
+        <wsdl:documentation>
+            Servicio SOAP para la entrega de archivos de pago masivo a proveedores de Volcán
+            hacia los SFTPs de los bancos habilitados.
+            Seguridad: OAuth 2.0 / Client ID Enforcement (configurado en Anypoint API Manager).
+        </wsdl:documentation>
+        <wsdl:port name="SAPExperienceSoapPort"
+                   binding="tns:PagoMasivoProveedoresSoapBinding">
+            <!-- URL definitiva se asigna al publicar en Anypoint Runtime -->
+            <soap:address location="https://[HOST]/services/sap-experience"/>
+        </wsdl:port>
+    </wsdl:service>
+
+</wsdl:definitions>

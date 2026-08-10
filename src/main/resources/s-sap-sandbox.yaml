@@ -1,0 +1,57 @@
+http:
+  host: "0.0.0.0"
+  port: "8098"
+
+timeout:
+  read: "300000"
+  response: "300000"
+  idle: "300000"
+
+sap:
+  userName: "USERAPPS"
+  password: "QAS#Apo@quindo$2025$"
+  systemNumber: "00"
+  clientId: "400"
+  host: "172.16.88.36"
+stock:
+  bapiName: "ZZ_STOCK_MATERIAL_GET"
+client:
+  bapiName:
+    Account-Insert: "ZMF_MAINTAIN_CUS_SF"
+    Account-Update: "ZMF_CHANGE_CUS_SF"
+    Tiernda_Obra__c-Insert: "ZMF_MAINTAIN_CUS_SF"
+    Tiernda_Obra__c-Update: "ZMF_CHANGE_CUS_SF"
+
+e-sap:
+  autodiscoveryId: "20877689"
+  
+bci_miami:
+  id: "BCIMI"
+  sftp:
+    host: "server13.ftpgrid.com"
+    port: "22"
+    user: "0FC.okykym8q"
+    password: "Wg%U>aC3e!X[bEdl1y~?^z(bTU?~BH2r"
+    directory: "/volcan/bci miami"
+  
+bci_nacional:
+  id: "BBCI1"
+  sftp:
+    host: "server13.ftpgrid.com"
+    port: "22"
+    user: "0FC.okykym8q"
+    password: "Wg%U>aC3e!X[bEdl1y~?^z(bTU?~BH2r"
+    directory: "/volcan/bci nacional"
+    
+brevo:
+  protocol: "HTTPS"
+  host: "api.brevo.com"
+  port: ""
+  api-key: "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"
+  path:
+    sendEmail: "/v3/smtp/email"
+  errorEmail:
+    sendFileToBanks:
+      emailTo: "mulesoft@alercesdigital.com,lvera@volcan.cl,ext.rcasella@volcan.cl"
+      templateId: "139"
+      proceso-quote: "SAP - Pago Masivo Proveedores"

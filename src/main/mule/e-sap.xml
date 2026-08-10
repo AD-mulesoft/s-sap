@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:apikit-soap="http://www.mulesoft.org/schema/mule/apikit-soap"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="
+		http://www.mulesoft.org/schema/mule/core         http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+		http://www.mulesoft.org/schema/mule/http         http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+		http://www.mulesoft.org/schema/mule/ee/core      http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+		http://www.mulesoft.org/schema/mule/apikit-soap  http://www.mulesoft.org/schema/mule/apikit-soap/current/mule-apikit-soap.xsd">
+
+	<!-- ============================================================
+	     APIKit for SOAP — configuración basada en WSDL
+	     Servicio  : SAPExperienceService
+	     Puerto    : SAPExperienceSoapPort
+	     ============================================================ -->
+	<apikit-soap:config
+		name="e-sap-config"
+		wsdlLocation="api/SAPExperience-v1.wsdl"
+		service="SAPExperienceService"
+		port="SAPExperienceSoapPort"
+		doc:name="APIkit SOAP Config" />
+
+	<!-- ============================================================
+	     Flujo principal — recibe las peticiones SOAP desde SAP
+	     Endpoint: POST /services/pago-masivo
+	     ============================================================ -->
+	<flow name="e-sap-main" doc:name="e-sap-main">
+		<http:listener
+			config-ref="s-sap-httpListenerConfig"
+			path="/services/sap-experience"
+			doc:name="SOAP Listener">
+			<http:response statusCode="200">
+				<http:headers>#[{'Content-Type': 'text/xml;charset=UTF-8'}]</http:headers>
+			</http:response>
+			<http:error-response statusCode="#[vars.httpStatus default 500]">
+				<http:body>#[payload]</http:body>
+				<http:headers>#[{'Content-Type': 'text/xml;charset=UTF-8'}]</http:headers>
+			</http:error-response>
+		</http:listener>
+
+		<apikit-soap:router config-ref="e-sap-config" doc:name="APIkit SOAP Router">
+			<apikit-soap:message>#[payload]</apikit-soap:message>
+			<apikit-soap:attributes>#[attributes]</apikit-soap:attributes>
+		</apikit-soap:router>
+
+		<error-handler>
+			<on-error-propagate type="APIKIT-SOAP:FAULT" doc:name="SOAP Fault">
+				<ee:transform doc:name="SOAP Fault">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/xml
+ns soapenv http://schemas.xmlsoap.org/soap/envelope/
+---
+{
+  soapenv#Envelope: {
+    soapenv#Body: {
+      soapenv#Fault: {
+        faultcode: "soapenv:Client",
+        faultstring: error.description default "Bad request"
+      }
+    }
+  }
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">400</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+			<on-error-propagate type="ANY" doc:name="Internal Error">
+				<ee:transform doc:name="SOAP Fault 500">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/xml
+ns soapenv http://schemas.xmlsoap.org/soap/envelope/
+---
+{
+  soapenv#Envelope: {
+    soapenv#Body: {
+      soapenv#Fault: {
+        faultcode: "soapenv:Server",
+        faultstring: error.description default "Internal server error"
+      }
+    }
+  }
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">500</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+
+	<!-- ============================================================
+	     Operación: EnviarArchivoBanco
+	     Convención de nombre: {operacion}:{servicio}:{puerto}:{config}
+	     Respuesta dummy: CODIGO = OK
+	     ============================================================ -->
+	<flow name="EnviarArchivoBanco:\e-sap-config"
+		doc:name="EnviarArchivoBanco">
+		<logger
+			level="INFO"
+			doc:name="INIT EnviarArchivoBanco"
+			message='#["INIT EnviarArchivoBanco | correlationId: " ++ correlationId]' />
+		<logger
+			level="DEBUG"
+			doc:name="Request payload"
+			message='#[%dw 2.0&#10;output application/xml&#10;---&#10;payload]' />
+
+		<flow-ref doc:name="sendFilesToBanks_sub_Flow" doc:id="a7ef55ef-a684-4482-b0f4-f29bf970dcf9" name="sendFilesToBanks_sub_Flow"/>
+		<logger
+			level="INFO"
+			doc:name="END EnviarArchivoBanco"
+			message='#["END EnviarArchivoBanco | correlationId: " ++ correlationId]' />
+	</flow>
+
+</mule>

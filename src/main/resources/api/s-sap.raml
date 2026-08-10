@@ -1,0 +1,23 @@
+#%RAML 1.0
+title: s-sap
+description: API de servicios encargados de comunicarse con SAP
+mediaType: 
+- application/json
+protocols:
+  - HTTPS
+
+/stock:
+  post:
+    responses:
+      201:
+        description: ok
+        body:
+          application/json:
+
+/client:
+  post:
+    responses:
+      201:
+        description: ok
+        body:
+          application/json:

@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:sftp="http://www.mulesoft.org/schema/mule/sftp" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:sap="http://www.mulesoft.org/schema/mule/sap"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/sap http://www.mulesoft.org/schema/mule/sap/current/mule-sap.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/sftp http://www.mulesoft.org/schema/mule/sftp/current/mule-sftp.xsd">
+	<sub-flow name="getStock_subFlow" doc:id="3156ee24-1c93-4cbc-8644-8a67c78f9b91" >
+		<ee:transform doc:name="INIT Vars" doc:id="250a7c19-1b35-41d1-9730-9283b132db99" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="listStock" ><![CDATA[%dw 2.0
+output application/json
+---
+[]]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<foreach doc:name="For Each" doc:id="0d8cca28-d51c-4af8-bd21-9c40b6d0ce3b" collection="#[payload]">
+			<logger level="INFO" doc:name="SAP Call" doc:id="46defd44-ee3b-4245-845f-5237b06f136c" message='#["SAP Call - Product: " ++ payload]'/>
+			<ee:transform doc:name="INIT Vars" doc:id="ae386505-a01f-4e35-827d-2a551084af80">
+			<ee:message>
+			</ee:message>
+				<ee:variables >
+					<ee:set-variable variableName="dataToSap" ><![CDATA[%dw 2.0
+output application/xml
+---
+{
+	ZZ_STOCK_MATERIAL_GET: {
+		"import": {
+//			IN_MATNR: "000000000006000102",
+			IN_MATNR: "00000000000" ++ payload,
+			IN_VKORG: "VOLC",
+			IN_ECOM: "X"
+		}
+	}
+}]]></ee:set-variable>
+				</ee:variables>
+		</ee:transform>
+			<until-successful maxRetries="3" doc:name="Until Successful" doc:id="f63084b8-33d3-4747-bb78-41d195df1f08" millisBetweenRetries="5000">
+				<sap:synchronous-remote-function-call key="${stock.bapiName}" doc:name="Synchronous Remote Function Call" doc:id="12eb46e3-5adb-4d0a-8088-714dd53dfda8" config-ref="SAP_Config" target="sapStock">
+				<sap:content><![CDATA[#[vars.dataToSap]]]></sap:content>
+		</sap:synchronous-remote-function-call>
+			</until-successful>
+			<logger level="DEBUG" doc:name="sapStock" doc:id="e74605c1-d07f-432f-aab3-69aa94f6194c" message="#[%dw 2.0&#10;output application/json&#10;---&#10;vars.sapStock]"/>
+			<ee:transform doc:name="Format listStock" doc:id="c87e25f5-6105-4171-802b-a143043a6a54">
+			<ee:message>
+			</ee:message>
+				<ee:variables >
+					<ee:set-variable variableName="listStock" ><![CDATA[%dw 2.0
+output application/json
+---
+vars.listStock ++ 
+[{
+    "product": payload,
+    "stock": vars.sapStock.ZZ_STOCK_MATERIAL_GET.tables.STOCK_T.*row
+}]]]></ee:set-variable>
+				</ee:variables>
+		</ee:transform>
+		</foreach>
+		<ee:transform doc:name="listStock to payload" doc:id="dcc6ffff-4197-4d8f-9b51-6f5650499715" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+vars.listStock]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+	<sub-flow name="postClient_subFlow" doc:id="c7f57d98-c31f-4bcb-9d58-d6179ace1c2b" >
+		<ee:transform doc:name="objectType" doc:id="16eeaaa0-2894-4c44-b83a-773c1958b12f" >
+			<ee:message >
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="objectType" ><![CDATA[%dw 2.0
+output application/json
+---
+payload.objectType]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<ee:transform doc:name="Init Vars" doc:id="c5975981-e905-4a55-87ea-5b5bc000484e">
+			<ee:message />
+			<ee:variables>
+				<ee:set-variable variableName="dwSelector"><![CDATA[%dw 2.0
+output application/java 
+var fileName= "modules/sap/$(vars.objectType).dwl"
+---
+readUrl("classpath://" ++ fileName,"text/plain")]]></ee:set-variable>
+				<ee:set-variable variableName="bapiName" ><![CDATA[%dw 2.0
+output application/json
+---
+p('client.bapiName.' ++ vars.objectType)]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<ee:dynamic-evaluate doc:name="Dynamic Evaluate" doc:id="893cca42-c4cc-42fe-add0-92bfecba6ccd" expression="#[vars.dwSelector]" target="dataToSap"/>
+		<logger level="INFO" doc:name="dataToSap" doc:id="d5387718-9c4a-45ce-a553-8c61feb68e5c" message="#[vars.dataToSap]"/>
+		<until-successful maxRetries="3" doc:name="Until Successful" doc:id="240365bd-9a31-4ac2-ae5e-f14b690c173d" millisBetweenRetries="5000">
+			<sap:synchronous-remote-function-call key="#[vars.bapiName]" doc:name="Synchronous Remote Function Call" doc:id="ff6fbe30-ce4b-4c09-b0be-6f05e116a51b" config-ref="SAP_Config">
+			<sap:content><![CDATA[#[vars.dataToSap]]]></sap:content>
+		</sap:synchronous-remote-function-call>
+		</until-successful>
+		<logger level="INFO" doc:name="payload" doc:id="133625c5-bad7-4b83-a678-b2a19e013bd3" message="#[payload]"/>
+		<ee:transform doc:name="Format response" doc:id="6bfa7d46-33f7-4282-b0d6-b1616f18cdab" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"input": write(vars.dataToSap, "application/xml"),
+	("output": write({export: payload.ZMF_MAINTAIN_CUS_SF.export},'application/xml')) if (!isEmpty(payload.ZMF_MAINTAIN_CUS_SF.export)),
+    ("output": write({export: payload.ZMF_CHANGE_CUS_SF.export},'application/xml')) if (!isEmpty(payload.ZMF_CHANGE_CUS_SF.export))
+}
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+	<sub-flow name="sendFilesToBanks_sub_Flow" doc:id="6d1218f8-7a81-4203-addb-d81d25d9d54e" >
+		<ee:transform doc:name="Payload to JSON" doc:id="e30998c4-c15b-4432-aec0-8ee31e0775c1" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<set-variable value="#[payload]" doc:name="Set originalPayload" doc:id="da85cada-6b4d-4e7e-9600-0479c2f6723e" variableName="originalPayload" />
+		<choice doc:name="Choice" doc:id="7f847066-f72e-401e-a6b0-5e1d87deee66" >
+			<when expression="#[payload.body.EnviarArchivoBancoRequest.ID_BANCO == Mule::p('bci_miami.id')]" >
+				<set-variable value="#[Mule::p('bci_miami.sftp.directory') ++ payload.body.EnviarArchivoBancoRequest.NOMBRE_ARCHIVO ++ &quot;.&quot; ++ payload.body.EnviarArchivoBancoRequest.EXTENSION_ARCHIVO]" doc:name="bciMiamiPath" doc:id="395b4586-b41a-42b4-b533-7fd4a14f42ae" variableName="bciMiamiPath" />
+				<logger level="INFO" doc:name="Log BCI Miami Path" doc:id="b19fc8ef-03f7-4323-9889-c67829c29b2b" message="Writing file in #[vars.bciMiamiPath]" />
+				<try doc:name="Try to send file to BCI MIAMI" doc:id="9439361d-c151-41f5-b8d2-a10796671ba3" >
+					<sftp:write doc:name="Write in BCI Miami SFTP" doc:id="0e1c9512-d335-42e7-9ea6-5a5762449cb2" config-ref="SFTP_Config_BCI_Miami" path="#[vars.bciMiamiPath]" >
+						<sftp:content ><![CDATA[#[%dw 2.0
+output text/plain
+---
+payload.body.EnviarArchivoBancoRequest.CUERPO_MENSAJE]]]></sftp:content>
+					</sftp:write>
+					<error-handler >
+						<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="776b33e3-0cf2-4836-8790-dcbf6af03544" >
+							<logger level="ERROR" doc:name="Log Error" doc:id="405410bd-932b-4412-8269-56073e408fc5" message="Error while trying to send file to BCI Miami: #[error.detailedDescription]" />
+							<set-variable value="#[error.detailedDescription]" doc:name="errorMessage" doc:id="28b63652-9967-4620-b555-29ac40d246a3" variableName="errorMessage" />
+							<set-variable value="#[true]" doc:name="Set errorInBciMiami" doc:id="9e9f6bed-4ce1-40a4-87eb-90508252e943" variableName="errorInBciMiami" />
+						</on-error-continue>
+					</error-handler>
+				</try>
+			</when>
+			<when expression="#[payload.body.EnviarArchivoBancoRequest.ID_BANCO == Mule::p('bci_nacional.id')]" >
+				<set-variable value="#[Mule::p('bci_nacional.sftp.directory') ++ payload.body.EnviarArchivoBancoRequest.NOMBRE_ARCHIVO ++ &quot;.&quot; ++ payload.body.EnviarArchivoBancoRequest.EXTENSION_ARCHIVO]" doc:name="bciNacionalPath" doc:id="b8f59822-6293-4a06-a7a0-9222d23449e2" variableName="bciNacionalPath" />
+				<logger level="INFO" doc:name="Log BCI Nacional Path" doc:id="47a946e0-2579-41bd-b99e-ed8a5e4a27a8" message="Writing file in #[vars.bciNacionalPath]" />
+				<try doc:name="Try to send file to BCI NACIONAL" doc:id="e0440196-d8d1-439b-b314-b236ade92a57" >
+					<sftp:write doc:name="Write in BCI Nacional SFTP" doc:id="65c7601e-37ac-4f9f-9d25-ec04631dd634" config-ref="SFTP_Config_BCI_Nacional" path="#[vars.bciNacionalPath]" >
+						<sftp:content ><![CDATA[#[%dw 2.0
+output text/plain
+---
+payload.body.EnviarArchivoBancoRequest.CUERPO_MENSAJE]]]></sftp:content>
+					</sftp:write>
+					<error-handler >
+						<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="0c727c22-ebeb-4bc9-934c-6a1a28f5851e" >
+							<logger level="ERROR" doc:name="Log Error" doc:id="b08e9303-20af-44b6-aa6b-5f88e1db2ef7" message="Error while trying to send file to BCI Nacional: #[error.detailedDescription]" />
+							<set-variable value="#[error.detailedDescription]" doc:name="errorMessage" doc:id="c9d5380f-061a-4155-8323-c12a44d77e47" variableName="errorMessage" />
+							<set-variable value="#[true]" doc:name="Set errorInBciNacional" doc:id="c505471c-3c71-4a3b-8b22-3f54d0615f30" variableName="errorInBciNacional" />
+						</on-error-continue>
+					</error-handler>
+				</try>
+			</when>
+			<otherwise >
+				<logger level="ERROR" doc:name="ID Banco not valid" doc:id="db7b77b1-0092-459f-949a-33c5d1865f25" message="ID_BANCO not valid #[payload.body.EnviarArchivoBancoRequest.ID_BANCO]" />
+			</otherwise>
+		</choice>
+		<ee:transform doc:name="Transform Message" doc:id="94fa0970-fe1c-42fe-a11e-78870f22beea" >
+			<ee:message />
+			<ee:variables >
+				<ee:set-variable variableName="codigo" ><![CDATA[%dw 2.0
+output application/java
+---
+if (isEmpty(vars.errorMessage))
+	"OK"
+else
+	"NOK"]]></ee:set-variable>
+				<ee:set-variable variableName="glosa" ><![CDATA[%dw 2.0
+output application/java
+---
+if (isEmpty(vars.errorMessage))
+	""
+else vars.errorMessage]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<choice doc:name="Choice1" doc:id="0bedb1bf-bec3-4cc0-8f77-9117a865e814" >
+			<when expression='#[vars.codigo == "NOK"]' >
+				<async doc:name="Async Send Erorr email" doc:id="3724f39b-85c5-4066-aca5-48951130b551" >
+					<logger level="INFO" doc:name="Logger" doc:id="ca1ada94-d6a4-4c8b-8bfd-a155dbcd923b" message="Sending Error email" />
+					<ee:transform doc:name="dataToBrevo" doc:id="8910af0c-601a-476c-bb87-9085830254d2" >
+						<ee:message />
+						<ee:variables >
+							<ee:set-variable variableName="dataToBrevo" ><![CDATA[%dw 2.0
+output application/json
+
+var emailTo = (p('brevo.errorEmail.sendFileToBanks.emailTo') splitBy (",")) map () -> {
+			    "email": $
+				}
+---
+{
+	"to": emailTo,
+	"templateId": p('brevo.errorEmail.sendFileToBanks.templateId') as Number,
+	"params": {
+		"proceso": p('brevo.errorEmail.sendFileToBanks.proceso-quote'),
+		"items": [
+			{ "id": "Banco", "mensaje": vars.originalPayload.body.EnviarArchivoBancoRequest.ID_BANCO},
+			{ "id": "Nombre de Archivo", "mensaje": vars.originalPayload.body.EnviarArchivoBancoRequest.NOMBRE_ARCHIVO},
+			{ "id": "Error", "mensaje": vars.errorMessage }
+		]
+	}
+}]]></ee:set-variable>
+						</ee:variables>
+					</ee:transform>
+					<flow-ref doc:name="brevoSendEmail_subFlow" doc:id="692a5346-552e-49b6-968b-08ef149230f9" name="brevoSendEmail_subFlow" />
+				</async>
+			</when>
+		</choice>
+		<ee:transform doc:name="Response" doc:id="a517f5fd-9509-416d-b5f8-bd653491fe6b" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/xml
+ns v1 http://volcan.cl/mulesoft/sap-experience/v1
+---
+if (vars.codigo == "OK")
+{
+  v1#EnviarArchivoBancoResponse: {
+    v1#CODIGO: vars.codigo
+  }
+}
+else
+{
+  v1#EnviarArchivoBancoResponse: {
+    v1#CODIGO: vars.codigo,
+    v1#GLOSA: vars.glosa
+  }
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</sub-flow>
+</mule>

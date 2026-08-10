@@ -1,0 +1,4 @@
+%dw 2.0
+
+type auto_c7f57d98_c31f_4bcb_9d58_d6179ace1c2b_Output_Variables_sapStock = Any
+

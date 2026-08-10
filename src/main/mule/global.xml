@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:sftp="http://www.mulesoft.org/schema/mule/sftp"
+	xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:sap="http://www.mulesoft.org/schema/mule/sap" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/sftp http://www.mulesoft.org/schema/mule/sftp/current/mule-sftp.xsd 
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/sap http://www.mulesoft.org/schema/mule/sap/current/mule-sap.xsd">
+	<configuration-properties doc:name="Configuration properties" doc:id="14701b5b-5eaf-499b-bdb7-9dae980407a6" file="s-sap-${env}.yaml" />
+	<global-property doc:name="Global Property" doc:id="170d1b6b-417b-4803-8161-bc6028c6ebe4" name="env" value="sandbox" />
+	    <http:listener-config name="s-sap-httpListenerConfig">
+        <http:listener-connection host="${http.host}" port="${http.port}" readTimeout="${timeout.read}" connectionIdleTimeout="${timeout.idle}">
+			<reconnection >
+				<reconnect frequency="5000" count="3" />
+			</reconnection>
+		</http:listener-connection>
+    </http:listener-config>
+	<sap:sap-config name="SAP_Config" doc:name="SAP Config" doc:id="7c4d7d22-5860-4908-8235-db2e14f6f03d" >
+		<sap:simple-connection-provider-connection username="${sap.userName}" password="${sap.password}" systemNumber="${sap.systemNumber}" client="${sap.clientId}" applicationServerHost="${sap.host}" language="ES">
+			<reconnection >
+				<reconnect frequency="5000" count="3" />
+			</reconnection>
+		</sap:simple-connection-provider-connection>
+	</sap:sap-config>
+	<api-gateway:autodiscovery apiId="${e-sap.autodiscoveryId}" ignoreBasePath="true" doc:name="API Autodiscovery" doc:id="39b301d9-3981-4f32-8ad4-d314f04e079d" flowRef="e-sap-main" />
+	<sftp:config name="SFTP_Config_BCI_Miami" doc:name="SFTP Config" doc:id="485e2fc0-1097-4d5e-8b53-e08bbbc25aa3" >
+		<sftp:connection host="${bci_miami.sftp.host}" port="${bci_miami.sftp.port}" username="${bci_miami.sftp.user}" password="${bci_miami.sftp.password}" workingDir="${bci_miami.sftp.directory}"/>
+	</sftp:config>
+	<sftp:config name="SFTP_Config_BCI_Nacional" doc:name="SFTP Config" doc:id="f7cc5cdb-bc27-462d-8808-bfd222330dea" >
+		<sftp:connection host="${bci_nacional.sftp.host}" port="${bci_nacional.sftp.port}" username="${bci_nacional.sftp.user}" password="${bci_nacional.sftp.password}" workingDir="${bci_nacional.sftp.directory}"/>
+	</sftp:config>
+	<http:request-config name="HTTP_Request_Brevo" doc:name="HTTP Request configuration" doc:id="3d8435aa-5a20-4f74-a42f-0b363608c6ae" responseTimeout="${timeout.response}">
+		<http:request-connection host="${brevo.host}" port="${brevo.port}">
+			<reconnection >
+				<reconnect frequency="5000" count="3" />
+			</reconnection>
+		</http:request-connection>
+	</http:request-config>
+</mule>
